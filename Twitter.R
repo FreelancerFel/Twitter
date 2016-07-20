@@ -15,11 +15,14 @@ getthaitweet<- function(topic,n){
 #test wordcloud
 #wc1<-wordcloud(a[1:1000])
 
+setwd("~/GitHub/Twitter")
+
 library(dplyr)
 library(twitteR)
 library(wordcloud)
 library(tm)
 library(ggplot2)
+library(sqldf)
 
 getname <- function(x){
   parts <- unlist(strsplit(x, split = ">"))
@@ -30,12 +33,12 @@ getname <- function(x){
 }
 
 #setting up connection to R
-consumer_key <- "45CL2r4pUBV9lNrbXJYupLXnv"
-consumer_secret <- "ZSnKzJZCDUhxOR2U96bh8N2Rz2sNGhnzepHBVXnAEKZj131uzg"
-access_token <- "39804408-tGbXR7dhz308jNmz8c6eszlvSGlLh0brYxvozE0nY"
-access_secret <- "rzYa7uzAHboQ9TSmOFhylwkZrKONBp6YSElG81PhR4Pw6"
+Twitter_Authentication<-read.csv('Twitter_Authentication.csv')
 
-setup_twitter_oauth(consumer_key, consumer_secret, access_token, access_secret)
+setup_twitter_oauth(Twitter_Authentication$consumer_key,
+                    Twitter_Authentication$consumer_secret,
+                    Twitter_Authentication$access_token,
+                    Twitter_Authentication$access_secret)
 
 #getting twitter data
 search <- function(term,n)
@@ -66,22 +69,31 @@ search <- function(term,n)
   write.csv(stack, file=paste(term,'_stack.csv'), row.names=F)
 }
 
-#convert to corpora
+#convert to text corpora for text analytics
 
-data<- read.csv("Fleur Delacour _stack.csv")
+data<- read.csv("Jason Bourne _stack.csv")
 df<-data.frame(data$text)
 df <- VCorpus(DataframeSource(df))
 
+#clean up the text corpora
+test <- tm_map(df,stripWhitespace)
+test <- tm_map(test,content_transformer(tolower))
+test <- tm_map(test,removeWords,stopwords("english"))
+test <- tm_map(test,stemDocument)
 
-stemDocument(df[[1]])
-a<-TermDocumentMatrix(df, control = list())
-findFreqTerms(a,lowfreq=3)
+#Find Frequent  Term
+frequentmatrix<-DocumentTermMatrix(test)
+frequent<-findFreqTerms(frequentmatrix,lowfreq=20)
+
+#find Association
+findAssocs(frequentmatrix, "jason", 0.5)
+
+#count word present ornot
+inspect(DocumentTermMatrix(test,list(dictionary = c("gun", "bourn"))))
+
 #simple detection - positive or negative
-
-
-df[[2]]
-stemDocument(df[[1]])
 #getting the score
+#still needs a list of word for positive and negative words?
 score.sentiment <- function(sentences, pos.words, neg.words, .progress='none')
 {
   require(dplyr)
@@ -89,9 +101,8 @@ score.sentiment <- function(sentences, pos.words, neg.words, .progress='none')
   scores <- laply(sentences, function(sentence, pos.words, neg.words){
     sentence <- gsub('[[:punct:]]', "", sentence)
     sentence <- gsub('[[:cntrl:]]', "", sentence)
-    #sentence <- gsub('\d+', "", sentence)
     sentence <- tolower(sentence)
-    word.list <- str_split(sentence)
+    word.list <- str_split(sentence, " ")
     words <- unlist(word.list," ")
     pos.matches <- match(words, pos.words)
     neg.matches <- match(words, neg.words)
@@ -105,6 +116,3 @@ score.sentiment <- function(sentences, pos.words, neg.words, .progress='none')
 }
 
 #assigning postive and negative dictionary for sentimental analysis
-pos.words <- scan('positive-words.txt', what='character', comment.char=';')
-
-#plot by score?  1 to 7 with 7 being the most positive and one being the most negative.
