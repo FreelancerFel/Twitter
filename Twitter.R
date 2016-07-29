@@ -19,10 +19,11 @@ setwd("~/GitHub/Twitter")
 
 library(dplyr)
 library(twitteR)
-library(wordcloud)
+# library(wordcloud)
 library(tm)
-library(ggplot2)
-library(sqldf)
+# library(ggplot2)
+# library(sqldf)
+library(data.table)
 
 getname <- function(x){
   parts <- unlist(strsplit(x, split = ">"))
@@ -116,3 +117,11 @@ score.sentiment <- function(sentences, pos.words, neg.words, .progress='none')
 }
 
 #assigning postive and negative dictionary for sentimental analysis
+worddb <- fread("SentiWordNet_3.0.0_20130122.txt")
+worddb <- data.frame(worddb)
+colnames(worddb) <- c("type_of_words","positive_score","negative_score","objectivity_score","word","definition")
+#split word and duplicate it
+
+worddb$overallscore <- worddb$positive_score - worddb$negative_score
+
+
