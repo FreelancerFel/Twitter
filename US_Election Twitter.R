@@ -4,6 +4,8 @@ library(sqldf)
 library(data.table)
 library(tidytext)
 library(wordcloud)
+library(stringr)
+library(tidyr)
 #getting data from twitter
 setwd("~/GitHub/Twitter")
 
@@ -54,7 +56,14 @@ DonaldTrumpTokenize <- DonaldTrump
 HillaryClintonTokenize <-  anti_join(unnest_tokens(HillaryClintonTokenize,Word, text),stop_words,by = c("Word" = "word"))
 DonaldTrumpTokenize <-  anti_join(unnest_tokens(DonaldTrumpTokenize,Word, text),stop_words,by = c("Word" = "word"))
 
+HillaryClintonTokenize$Date<-as.Date(HillaryClintonTokenize$created,format='%m/%d/%Y')
+DonaldTrumpTokenize$Date<-as.Date(DonaldTrumpTokenize$created,format='%m/%d/%Y')
+
 #wordcloud
+bing <- sentiments %>%
+  filter(lexicon == "bing") %>%
+  select(-score,-lexicon)
+
 
 wordcloudforelection<-function(Textfile){
   wordcloud <- Textfile %>% count(Word, sort = TRUE)
@@ -69,21 +78,56 @@ wordcloudforelection<-function(Textfile){
 wordcloudforelection(HillaryClintonTokenize)
 wordcloudforelection(DonaldTrumpTokenize)
 
-#sentiment analysis
-bing <- sentiments %>%
-filter(lexicon == "bing") %>%
-select(-score,-lexicon)
+#sentiment analysis 
                       
 twittersentimentHC <- HillaryClintonTokenize %>%
 inner_join(bing,by = c('Word'='word'))
 
 twittersentimentDT <- DonaldTrumpTokenize %>%
   inner_join(bing,by = c('Word'='word'))
+
+#Overall Sentiment Score ### BROKEN
                       
-HCDF <- sqldf("select sentiment,count(*) as Sentiment_Score from twittersentimentHC group by sentiment")
-DTDF <- sqldf("select sentiment,count(*) as Sentiment_Score from twittersentimentDT group by sentiment")
+HCsentiment <- HillaryClintonTokenize %>%
+  inner_join(bing, by = c('Word'='word')) %>% 
+  count(sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+DTsentiment <- DonaldTrumpTokenize %>%
+  inner_join(bing, by = c('Word'='word')) %>% 
+  count(sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+#By Date Sentiment Score
+
+HCsentimentDate <- HillaryClintonTokenize %>%
+  inner_join(bing, by = c('Word'='word')) %>% 
+  count(Date, sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+DTsentimentDate <- DonaldTrumpTokenize %>%
+  inner_join(bing, by = c('Word'='word')) %>% 
+  count(Date, sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+#By Tweet ID
+
+HCsentimentID <- HillaryClintonTokenize %>%
+  inner_join(bing, by = c('Word'='word')) %>% 
+  count(id, sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+DTsentimentID <- DonaldTrumpTokenize %>%
+  inner_join(bing, by = c('Word'='word')) %>% 
+  count(id, sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
 
 #ggplot
-
 
 
