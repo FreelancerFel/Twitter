@@ -1,19 +1,12 @@
 library(dplyr)
-library(stringr)
 library(twitteR)
 library(sqldf)
 library(data.table)
 library(tidytext)
+library(wordcloud)
 #getting data from twitter
 setwd("~/GitHub/Twitter")
 
-# getname <- function(x){
-#   parts <- unlist(strsplit(x, split = ">"))
-#   parts <- parts[2]
-#   parts <- unlist(strsplit(parts, split = "<"))
-#   parts <- parts[1]
-#   return (parts)
-# }
 
 #setting up connection to R
 Twitter_Authentication<-read.csv('Twitter_Authentication.csv')
@@ -23,42 +16,74 @@ setup_twitter_oauth(Twitter_Authentication$consumer_key,
                     Twitter_Authentication$access_secret)
 
 #Get 2500 of the Latest Clinton Tweets and Convert to Dataframe Format
-HillaryClinton<-userTimeline('HillaryClinton', n=2500,
-                             includeRts=TRUE, excludeReplies=TRUE) 
-HillaryClinton<-twListToDF(HillaryClinton)
-str(HillaryClinton)
 
-#Get tweet from June and July 2016
-HillaryClinton <-arrange(HillaryClinton, created) %>% 
-  filter(created > as.POSIXct("2016-06-01 07:00:00")) %>% 
-  filter(created < as.POSIXct("2016-08-01 07:00:00")) %>%
-  select(-favorited,-longitude,-latitude,-replyToUID,-replyToSID,-replyToSN,-retweeted)
+gettweetsfrom<-function(twitterhandle){
+  require(twitteR)
+  require(dplyr)
+  tweets<-userTimeline(twitterhandle, n=2500,
+                               includeRts=TRUE, excludeReplies=TRUE) 
+  tweets<-twListToDF(tweets)
+  
+  #Get tweet from June and July 2016
+  tweets <-arrange(tweets, created) %>% 
+    filter(created > as.POSIXct("2016-06-01 07:00:00")) %>% 
+    filter(created < as.POSIXct("2016-08-01 07:00:00")) %>%
+    select(-favorited,-longitude,-latitude,-replyToUID,-replyToSID,-replyToSN,-retweeted)
+
+  return (tweets) 
+}
+
+HillaryClinton<-gettweetsfrom("HillaryClinton")
+DonaldTrump<-gettweetsfrom("realdonaldtrump")
 
 #Save Tweet Data
 if (file.exists('Hillary_Clinton.csv') == FALSE){
   write.csv(HillaryClinton,'Hillary_Clinton.csv')
 }
+if (file.exists('Donald_Trump.csv') == FALSE){
+  write.csv(DonaldTrump,'Donald_Trump.csv')
+}
 
 #Seperate Two Set Of Data, One For Tokenize.
 HillaryClintonTweetFull <- HillaryClinton
 HillaryClintonTokenize <- HillaryClinton
+DonaldTrumpTweetFull <- DonaldTrump
+DonaldTrumpTokenize <- DonaldTrump
 
-#Tokenize and then remove stop words
+#Tokenize and remove stop words
 HillaryClintonTokenize <-  anti_join(unnest_tokens(HillaryClintonTokenize,Word, text),stop_words,by = c("Word" = "word"))
+DonaldTrumpTokenize <-  anti_join(unnest_tokens(DonaldTrumpTokenize,Word, text),stop_words,by = c("Word" = "word"))
 
-#count words
-HillaryClintonTokenize %>%
-  count(Word, sort = TRUE)
+#wordcloud
 
+wordcloudforelection<-function(Textfile){
+  wordcloud <- Textfile %>% count(Word, sort = TRUE)
+  wordcloudsentiment <- wordcloud %>% left_join(bing,by = c('Word'='word'))
+  wordcloudsentiment$sentiment[is.na(wordcloudsentiment$sentiment)==TRUE] <- "Neutral"
+  wordcloudsentiment <- filter(wordcloudsentiment,Word!="https" , Word!="t.co", Word!="rt")
+  wordcloud(words = wordcloudsentiment$Word, freq = wordcloudsentiment$n, scale=c(4,1),
+          random.order = FALSE, max.words = 100 ,rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+}
+
+wordcloudforelection(HillaryClintonTokenize)
+wordcloudforelection(DonaldTrumpTokenize)
 
 #sentiment analysis
 bing <- sentiments %>%
-  filter(lexicon == "bing") %>%
-  select(-score)
+filter(lexicon == "bing") %>%
+select(-score,-lexicon)
+                      
+twittersentimentHC <- HillaryClintonTokenize %>%
+inner_join(bing,by = c('Word'='word'))
 
-twittersentiment <- HillaryClintonTokenize %>%
+twittersentimentDT <- DonaldTrumpTokenize %>%
   inner_join(bing,by = c('Word'='word'))
+                      
+HCDF <- sqldf("select sentiment,count(*) as Sentiment_Score from twittersentimentHC group by sentiment")
+DTDF <- sqldf("select sentiment,count(*) as Sentiment_Score from twittersentimentDT group by sentiment")
 
-df <- sqldf("select sentiment,count(*) as Sentiment_Score from twittersentiment group by sentiment")
+#ggplot
+
 
 
