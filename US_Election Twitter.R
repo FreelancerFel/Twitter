@@ -6,6 +6,8 @@ library(tidytext)
 library(wordcloud)
 library(stringr)
 library(tidyr)
+library(ggplot2)
+library(ggthemes)
 #getting data from twitter
 setwd("~/GitHub/Twitter")
 
@@ -86,7 +88,7 @@ inner_join(bing,by = c('Word'='word'))
 twittersentimentDT <- DonaldTrumpTokenize %>%
   inner_join(bing,by = c('Word'='word'))
 
-#Overall Sentiment Score ### BROKEN
+#Overall Sentiment Score ###
                       
 HCsentiment <- HillaryClintonTokenize %>%
   inner_join(bing, by = c('Word'='word')) %>% 
@@ -98,6 +100,16 @@ DTsentiment <- DonaldTrumpTokenize %>%
   count(sentiment) %>% 
   spread(sentiment, n, fill = 0) %>% 
   mutate(sentiment = positive - negative)
+
+OverallSentiment <- rbind(HCsentiment,DTsentiment)
+OverallSentiment$User <- c("@HillaryClinton","@RealDonaldTrump")
+
+ggplot(OverallSentiment,aes(x=User,y=sentiment))+
+  geom_bar(stat="identity",aes(fill=User),color="black")+
+  labs(title="Overall Sentiment Score between June - July 2016", 
+                    x = "Twitter Account", y = "Sentiment Score")+
+  scale_fill_manual(values = c("blue", "red"))+
+  geom_label(aes(label=sentiment),fontface=("bold"))+theme_calc()
 
 #By Date Sentiment Score
 
@@ -113,6 +125,13 @@ DTsentimentDate <- DonaldTrumpTokenize %>%
   spread(sentiment, n, fill = 0) %>% 
   mutate(sentiment = positive - negative)
 
+OverTimeSentiment <- full_join(HCsentimentDate,DTsentimentDate,by = c('Date'='Date'))
+
+ggplot(OverTimeSentiment,aes(x=Date))+
+  geom_line(aes(y=sentiment.x),color="blue")+
+  geom_line(aes(y=sentiment.y),color="red")+
+  theme_calc()
+
 #By Tweet ID
 
 HCsentimentID <- HillaryClintonTokenize %>%
@@ -127,7 +146,5 @@ DTsentimentID <- DonaldTrumpTokenize %>%
   spread(sentiment, n, fill = 0) %>% 
   mutate(sentiment = positive - negative)
 
-
-#ggplot
 
 
