@@ -8,9 +8,10 @@ library(stringr)
 library(tidyr)
 library(ggplot2)
 library(ggthemes)
+library(RColorBrewer)
 #getting data from twitter
 setwd("~/GitHub/Twitter")
-
+Sys.setenv(LANG = "en")
 
 #setting up connection to R
 Twitter_Authentication<-read.csv('Twitter_Authentication.csv')
@@ -61,24 +62,52 @@ DonaldTrumpTokenize <-  anti_join(unnest_tokens(DonaldTrumpTokenize,Word, text),
 HillaryClintonTokenize$Date<-as.Date(HillaryClintonTokenize$created,format='%m/%d/%Y')
 DonaldTrumpTokenize$Date<-as.Date(DonaldTrumpTokenize$created,format='%m/%d/%Y')
 
+#Number of Tweets per day (Engagement with Twitters)
+
+HillaryClintonTweetFull$Date<-as.Date(HillaryClintonTweetFull$created,format='%m/%d/%Y')
+DonaldTrumpTweetFull$Date<-as.Date(DonaldTrumpTweetFull$created,format='%m/%d/%Y')
+
+NumberHCT <- HillaryClintonTweetFull %>% group_by (Date) %>% summarise (count = n())
+NumberDTT <- DonaldTrumpTweetFull %>% group_by (Date) %>% summarise (count = n())
+NumberHCT$User <- "Hillary"
+NumberDTT$User <- "Trump"
+TweetsPerDay <- rbind(NumberHCT,NumberDTT)
+
+ggplot(TweetsPerDay,aes(x=Date))+
+  geom_bar(stat="identity",aes(y=count,fill=User),position="fill",color="black")+
+  labs(title="Tweets between June - July 2016", 
+       x = "Twitter Account", y = "Sentiment Score")+
+  scale_fill_manual(values = c("blue", "red"))+
+  scale_y_continuous(labels = scales::percent)
+  
+
 #wordcloud
 bing <- sentiments %>%
   filter(lexicon == "bing") %>%
   select(-score,-lexicon)
 
 
-wordcloudforelection<-function(Textfile){
-  wordcloud <- Textfile %>% count(Word, sort = TRUE)
+wordcloudforhillary<-function(){
+  wordcloud <- HillaryClintonTokenize %>% count(Word, sort = TRUE)
   wordcloudsentiment <- wordcloud %>% left_join(bing,by = c('Word'='word'))
   wordcloudsentiment$sentiment[is.na(wordcloudsentiment$sentiment)==TRUE] <- "Neutral"
   wordcloudsentiment <- filter(wordcloudsentiment,Word!="https" , Word!="t.co", Word!="rt")
   wordcloud(words = wordcloudsentiment$Word, freq = wordcloudsentiment$n, scale=c(4,1),
           random.order = FALSE, max.words = 100 ,rot.per=0.35, 
-          colors=brewer.pal(8, "Dark2"))
+          colors="blue")
+}
+wordcloudfortrump<-function(){
+  wordcloud <- DonaldTrumpTokenize %>% count(Word, sort = TRUE)
+  wordcloudsentiment <- wordcloud %>% left_join(bing,by = c('Word'='word'))
+  wordcloudsentiment$sentiment[is.na(wordcloudsentiment$sentiment)==TRUE] <- "Neutral"
+  wordcloudsentiment <- filter(wordcloudsentiment,Word!="https" , Word!="t.co", Word!="rt")
+  wordcloud(words = wordcloudsentiment$Word, freq = wordcloudsentiment$n, scale=c(4,1),
+            random.order = FALSE, max.words = 100 ,rot.per=0.35, 
+            colors="red")
 }
 
-wordcloudforelection(HillaryClintonTokenize)
-wordcloudforelection(DonaldTrumpTokenize)
+wordcloudforhillary()
+wordcloudfortrump()
 
 #sentiment analysis 
                       
@@ -125,16 +154,19 @@ DTsentimentDate <- DonaldTrumpTokenize %>%
   spread(sentiment, n, fill = 0) %>% 
   mutate(sentiment = positive - negative)
 
+# Combine all data including number of tweets per days.
 OverTimeSentiment <- full_join(HCsentimentDate,DTsentimentDate,by = c('Date'='Date'))
+OverTimeSentiment <- inner_join(OverTimeSentiment,TweetsPerDay)
+
 
 ggplot(OverTimeSentiment,aes(x=Date))+
   geom_line(aes(y=sentiment.x),color="blue",size=1)+
   geom_line(aes(y=sentiment.y),color="red",size=1)+labs(title="Day-by-Day Sentiment of Twitter Post",x="Date",y="Sentiment Score")+
   geom_hline( aes( yintercept=0) ,size=1)+theme(legend.position = "bottom")+
-  theme_grey()+annotate("text",x=(as.Date("2016-06-13")),y=-28, label="June 13: Orlando Shooting",color="blue",size=3)+
-  annotate("text",x=(as.Date("2016-07-21")),y=61, label="July 28: Hillary Clinton nominates at DNC",color="blue",size=3)+
-  annotate("text",x=(as.Date("2016-06-10")),y=14, label="June 3: Paul Ryan endorse Donald Trump",color="red",size=3)+
-  annotate("text",x=(as.Date("2016-07-22")),y=-32, label="July 29: Democratic National Convention",color="red",size=3)+
+  theme_grey()+annotate("text",x=(as.Date("2016-06-13")),y=-28, label="June 13: Orlando Shooting",color="blue",size=4)+
+  annotate("text",x=(as.Date("2016-07-28")),y=61, label="July 28: Hillary Clinton nominates at DNC",color="blue",size=4)+
+  annotate("text",x=(as.Date("2016-06-3")),y=14, label="June 3: Paul Ryan endorse Donald Trump",color="red",size=4)+
+  annotate("text",x=(as.Date("2016-07-27")),y=-32, label="July 29: Democratic National Convention",color="red",size=4)+
   scale_y_continuous("Sentiment Score",breaks=seq(-30,70,5))
 
 #By Tweet ID
