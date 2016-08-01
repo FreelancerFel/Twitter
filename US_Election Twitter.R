@@ -134,7 +134,8 @@ ggplot(OverTimeSentiment,aes(x=Date))+
   theme_grey()+annotate("text",x=(as.Date("2016-06-13")),y=-28, label="June 13: Orlando Shooting",color="blue",size=3)+
   annotate("text",x=(as.Date("2016-07-21")),y=61, label="July 28: Hillary Clinton nominates at DNC",color="blue",size=3)+
   annotate("text",x=(as.Date("2016-06-10")),y=14, label="June 3: Paul Ryan endorse Donald Trump",color="red",size=3)+
-  annotate("text",x=(as.Date("2016-07-22")),y=-32, label="July 29: Democratic National Convention",color="red",size=3)
+  annotate("text",x=(as.Date("2016-07-22")),y=-32, label="July 29: Democratic National Convention",color="red",size=3)+
+  scale_y_continuous("Sentiment Score",breaks=seq(-30,70,5))
 
 #By Tweet ID
 
