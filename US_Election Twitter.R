@@ -128,9 +128,13 @@ DTsentimentDate <- DonaldTrumpTokenize %>%
 OverTimeSentiment <- full_join(HCsentimentDate,DTsentimentDate,by = c('Date'='Date'))
 
 ggplot(OverTimeSentiment,aes(x=Date))+
-  geom_line(aes(y=sentiment.x),color="blue")+
-  geom_line(aes(y=sentiment.y),color="red")+
-  theme_calc()
+  geom_line(aes(y=sentiment.x),color="blue",size=1)+
+  geom_line(aes(y=sentiment.y),color="red",size=1)+labs(title="Day-by-Day Sentiment of Twitter Post",x="Date",y="Sentiment Score")+
+  geom_hline( aes( yintercept=0) ,size=1)+theme(legend.position = "bottom")+
+  theme_grey()+annotate("text",x=(as.Date("2016-06-13")),y=-28, label="June 13: Orlando Shooting",color="blue",size=3)+
+  annotate("text",x=(as.Date("2016-07-21")),y=61, label="July 28: Hillary Clinton nominates at DNC",color="blue",size=3)+
+  annotate("text",x=(as.Date("2016-06-10")),y=14, label="June 3: Paul Ryan endorse Donald Trump",color="red",size=3)+
+  annotate("text",x=(as.Date("2016-07-22")),y=-32, label="July 29: Democratic National Convention",color="red",size=3)
 
 #By Tweet ID
 
