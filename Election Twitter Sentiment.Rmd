@@ -1,0 +1,70 @@
+---
+title: "US Presidential Election Social Media Campaign Sentiment Analysis"
+author: "Freelancer"
+date: "3 สิงหาคม 2559"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(twitteR)
+library(sqldf)
+library(data.table)
+library(tidytext)
+library(wordcloud)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(ggthemes)
+library(RColorBrewer)
+library(reshape2)
+library(sentimentr)
+
+HillaryClinton2 <- data.frame(fread("Hillary_Clinton.csv"))
+DonaldTrump2 <- data.frame(fread("Donald_Trump.csv"))
+
+HillaryClinton2$V1 <- NULL
+DonaldTrump2$V1 <- NULL
+
+HillaryClinton2$Date<-as.Date(HillaryClinton2$created,format='%m/%d/%Y')
+DonaldTrump2$Date<-as.Date(as.character(DonaldTrump2$created),format='%m/%d/%Y')
+
+HillaryClintonTweetFull <- HillaryClinton2
+HillaryClintonTokenize <- HillaryClinton2
+DonaldTrumpTweetFull <- DonaldTrump2
+DonaldTrumpTokenize <- DonaldTrump2
+HillaryClintonTweetSentence <- HillaryClinton2
+DonaldTrumpTweetSentence <- DonaldTrump2
+
+#Tokenize and remove stop words
+HillaryClintonTokenize <- anti_join(unnest_tokens(HillaryClintonTokenize,Word, text),stop_words,by = c("Word" = "word"))
+DonaldTrumpTokenize <-  anti_join(unnest_tokens(DonaldTrumpTokenize,Word, text),stop_words,by = c("Word" = "word"))
+
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r tweets}
+
+HillaryClintonTweetFull$Date<-as.Date(HillaryClintonTweetFull$created,format='%m/%d/%Y')
+DonaldTrumpTweetFull$Date<-as.Date(DonaldTrumpTweetFull$created,format='%m/%d/%Y')
+
+NumberHCT <- HillaryClintonTweetFull %>% group_by (Date) %>% summarise (count = n())
+NumberDTT <- DonaldTrumpTweetFull %>% group_by (Date) %>% summarise (count = n())
+NumberHCT$User <- "Hillary"
+NumberDTT$User <- "Trump"
+TweetsPerDay <- rbind(NumberHCT,NumberDTT)
+
+ggplot(TweetsPerDay,aes(x=Date))+
+  geom_bar(stat="identity",aes(y=count,fill=User),position="stack",color="black")+
+  labs(title="Tweets between June - July 2016", 
+       x = "Twitter Account", y = "Sentiment Score")+
+  annotate("text",x=(as.Date("2016-07-01")),y=100, label= paste("Mean Tweets Per Days =",round(mean(TweetsPerDay$count),0),sep=" "),color="black",size=4)+
+  scale_fill_manual(values = c("blue", "red"))
+
+```
